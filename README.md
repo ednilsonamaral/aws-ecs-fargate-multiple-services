@@ -1,6 +1,6 @@
 # Multiple services using AWS ECS + Fargate
 
-This resource aims to show the step to implement various services using AWS ECS + Gate, using deploy via (bitbucket) pipelines and Docker.
+This resource aims to show the step to implement various services using AWS ECS + Fargate, using deploy via (bitbucket) pipelines and Docker.
 
 
 ## Scenario
