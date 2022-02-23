@@ -1,0 +1,43 @@
+{
+  "family": "api-ecs-task-definition",
+  "networkMode": "awsvpc",
+  "executionRoleArn": "ecsTaskExecutionRole",
+  "containerDefinitions": [
+    {
+      "image": "123456789008.ecr.azonaws.com/api:$BITBUCKET_COMMIT",
+      "name": "api-ecs-container",
+      "portMappings": [
+        {
+          "hostPort": 8080,
+          "protocol": "tcp",
+          "containerPort": 8080
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/api-ecs-task-definition",
+          "awslogs-region": "us-east-2",
+          "awslogs-stream-prefix": "ecs"
+        }
+      },
+      "essential": true,
+      "environment": [
+        {
+          "name": "NODE_ENV",
+          "value": "developement"
+        },
+        {
+          "name": "PORT",
+          "value": "8080"
+        }
+      ]
+    }
+  ],
+  "requiresCompatibilities": [
+    "EC2",
+    "FARGATE"
+  ],
+  "cpu": "512",
+  "memory": "1024"
+}
