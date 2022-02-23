@@ -3,7 +3,7 @@
 This resource aims to show the step to implement various services using AWS ECS + Gate, using deploy via (bitbucket) pipelines and Docker.
 
 
-## Cenário
+## Scenario
 
 Let's say you have several backend applications in your project and you need to deploy them to some AWS service. And, in the case of multiple services, the ideal would be to use a quality service, scalable and with a low cost.
 
@@ -26,15 +26,19 @@ Fargate, nothing more, takes care of all the necessary infrastructure for our co
 In a nutshell, we will launch our containers and leave the rest to AWS!
 
 
-## Passo a Passo
+## Step by step
 
 ### 1. Create ECS Cluster - Select cluster template
 First of all, within the AWS console, go to the **Elastic Container Service >> Cluster >> Create Cluster**. Pay attention only to the region where you are creating this cluster, as we will use this information in the next steps.
 
 When creating an ECS Cluster, we have 3 template options. We chose **Networking only** as we will only need it to access the available VPC to connect to its subnets and find the containers and other configurations. And then be accessible via a subdomain. Also, only in this mode can we use Fargate.
+
+![create ECS Cluster](https://raw.githubusercontent.com/ednilsonamaral/aws-ecs-fargate-multiple-services/master/img/create-ecs-cluster.png)
  
 ### 2. Create ECS Cluster - Configure cluster
 Here we give the name of our cluster. If you already have a VPC and its subnets, under Networking you do not need to select to create a new VPC. I recommend creating a new VPC and subnets exclusively for this cluster.
+
+![configure ecs cluster](https://raw.githubusercontent.com/ednilsonamaral/aws-ecs-fargate-multiple-services/master/img/create-ecs-cluster-01.png)
 
 ### 3. Create security group
 After we create our cluster in ECS, access the EC2 service and go to **Network & Security >> Security groups >> Create security groups**.
@@ -45,6 +49,8 @@ In the screen above, just name the Security group, select the VPC created and th
 
 In **Inbound rules**, we can add our ports. In our case, all our application containers have port 8080 for HTTP and 443 for HTTPS. Just configure as in the image above.
 
+![create security group](https://raw.githubusercontent.com/ednilsonamaral/aws-ecs-fargate-multiple-services/master/img/create-sg.png)
+
 ### 4. Create target group
 After we have the security group, still inside EC2, go to **Load Balancing >> Target groups >> Create target group**.
 
@@ -52,19 +58,29 @@ We will pay more attention here, as we will have several target groups, one for 
 
 Our target group will be of the **IP addresses** type, as the IP of each task definition that will leave each application standing will have a public and private IP and will be associated here and in our ALB, in the next steps.
 
+![create target group](https://raw.githubusercontent.com/ednilsonamaral/aws-ecs-fargate-multiple-services/master/img/create-tg.png)
+
 ### 5. Create load balancer - Select load balancer type
 So, let's create our load balancer. AWS offers us 3 types of load balancer, and since we want to access our applications from external addresses, it needs to be an ALB type.
 
+![create alb](https://raw.githubusercontent.com/ednilsonamaral/aws-ecs-fargate-multiple-services/master/img/create-alb.png)
+
 ### 6. Create load balancer - Create Application Load Balancer
 Here, we name our ALB. we selected the **Internet-facing** scheme and the IP address type **IPv4**.
+
+![create alb](https://raw.githubusercontent.com/ednilsonamaral/aws-ecs-fargate-multiple-services/master/img/create-alb-01.png)
 
 ### 6. Create load balancer - Security groups & Listeners and routing
 In **Security groups** we just select what we created in step 3.
 
 In **Listeners and routing** is where we tell our ALB which **target group** it is going to target.
 
+![create alb](https://raw.githubusercontent.com/ednilsonamaral/aws-ecs-fargate-multiple-services/master/img/create-alb-02.png)
+
 ### 7. Create load balancer - Secure listener settings
 Here we select our HTTPS certificate. In my particular case, the certificate and domain are already all configured within AWS and Cloudfare.
+
+![create alb](https://raw.githubusercontent.com/ednilsonamaral/aws-ecs-fargate-multiple-services/master/img/create-alb-03.png)
 
 After that, just click **Create** and wait a few minutes for the ALB to be created.
 
@@ -75,16 +91,24 @@ As we will access via HTTP, all the rules that we will need to edit are on port 
 
 And, in this step, we will add each path for each application that we have available and direct them to their respective target group.
 
+![edit rules alb](https://raw.githubusercontent.com/ednilsonamaral/aws-ecs-fargate-multiple-services/master/img/create-alb-04.png)
+
 ### 9. ALB Listeners - Rules - Insert rule
 In the **IF (all match)** column, we will always have two conditions for each application.
 
 The first condition is our **Host header** which is the domain of our application.
 
+![rule alb](https://raw.githubusercontent.com/ednilsonamaral/aws-ecs-fargate-multiple-services/master/img/create-rules.png)
+
 The second condition is the prefix of our application. For example, if we have `api.domain.com.br` as domain and two APIs, `auth` and `users`, then we will have two rules, one for `auth` and one for `users`.
 
 Then, still in the same rule, we added a new condition of type **Path** putting `/auth*` or the prefix of your application.
 
+![edit rule alb](https://raw.githubusercontent.com/ednilsonamaral/aws-ecs-fargate-multiple-services/master/img/create-rules-01.png)
+
 In the **Then** column, it will be the action of this rule that we are implementing, that is, which is the target group responsible for this rule. Click on **Forward to..** and select the target group for this application. So just save this rule.
+
+![edit rule alb](https://raw.githubusercontent.com/ednilsonamaral/aws-ecs-fargate-multiple-services/master/img/create-rules-02.png)
 
 For each target group and application that we will have, it is here that we will insert a new rule to access correctly through our domain.
 
@@ -95,20 +119,34 @@ Remembering that each application needs to have a Task Definition.
 
 In this first step is where we will select if we are going to use Fargate or EC2 or something external for our task. Select **Fargate** and click **Next step**.
 
+![create task definition](https://raw.githubusercontent.com/ednilsonamaral/aws-ecs-fargate-multiple-services/master/img/create-task-definition.png)
+
 ### 11. ECS - Task definition - Create new task definition - Configure task and container definitions
 Here, name the task definition, select a Task role according to the print example and the Linux operating system. There are options to use Windows as well, but the cost will be higher.
+
+![create task definition](https://raw.githubusercontent.com/ednilsonamaral/aws-ecs-fargate-multiple-services/master/img/create-task-definition-01.png)
 
 ### 12. ECS - Task definition - Create new task definition - Task size
 In **Task size** is where you will say how much processing it will require CPU and how much memory will be consumed.
 
+![create task definition](https://raw.githubusercontent.com/ednilsonamaral/aws-ecs-fargate-multiple-services/master/img/create-task-definition-02.png)
+
 ### 13. ECS - Task definition - Create new task definition - Container definitions
 In **Container definitions** is where we will configure our Docker container, environments and logs configuration. Click on **Add container**. In the modal that opens, just name the container, and in **Image** you will add the address of your Docker image. In **Port mappings** just put **8080**.
+
+![create task definition](https://raw.githubusercontent.com/ednilsonamaral/aws-ecs-fargate-multiple-services/master/img/create-task-definition-03.png)
+
+![create task definition](https://raw.githubusercontent.com/ednilsonamaral/aws-ecs-fargate-multiple-services/master/img/create-task-definition-04.png)
 
 ### 14. ECS - Task definition - Create new task definition - Environment
 In the **Environment** section we will add our application variables.
 
+![create task definition](https://raw.githubusercontent.com/ednilsonamaral/aws-ecs-fargate-multiple-services/master/img/create-task-definition-05.png)
+
 ### 15. ECS - Task definition - Create new task definition - Storage and Logging
 In the **Storage and Logging** session, just select the **Log configuration** checkbox to have all the logs of our application available, being possible to view them via **CloudWatch**.
+
+![create task definition](https://raw.githubusercontent.com/ednilsonamaral/aws-ecs-fargate-multiple-services/master/img/create-task-definition-06.png)
 
 ### 16. ECS - Service - Create Service - Configure service
 Remembering that each application needs to have a Service.
@@ -119,17 +157,32 @@ In **Launch type** just select the type of your task definition, because we will
 
 In the **Task definition** block, in **Family** we will select our task definition for this service. We will also select the cluster, name the service and set **Number of tasks** to **1**. Because we will only need 1 task running for each service, we don't need more than 1.
 
+![create service](https://raw.githubusercontent.com/ednilsonamaral/aws-ecs-fargate-multiple-services/master/img/create-service-01.png)
+
+![create service](https://raw.githubusercontent.com/ednilsonamaral/aws-ecs-fargate-multiple-services/master/img/create-service-02.png)
+
 ### 17. ECS - Service - Create Service - Configure network
 In the next step, under **Configure network**, we will select the VPC and subnets created earlier.
 
+![create service](https://raw.githubusercontent.com/ednilsonamaral/aws-ecs-fargate-multiple-services/master/img/create-service-03.png)
+
 Also, we will select the created ALB. In **Load balancing >> Load balancer type** we select **Application Load Balancer** and in the select that appears, we select the ALB created previously.
 
+![create service](https://raw.githubusercontent.com/ednilsonamaral/aws-ecs-fargate-multiple-services/master/img/create-service-04.png)
+
 In **Container to load balancer** we will link the container to our ALB, clicking on **Add to load balancer**.
+
+![create service](https://raw.githubusercontent.com/ednilsonamaral/aws-ecs-fargate-multiple-services/master/img/create-service-05.png)
+
+![create service](https://raw.githubusercontent.com/ednilsonamaral/aws-ecs-fargate-multiple-services/master/img/create-service-06.png)
 
 Just select the **Target group** and it fills in the rest of the fields.
 
 ### 18. ECS - Service - Create Service - Set Auto Scalling
 In the last step, we say whether we want this task to be auto-scalable or not. And then we see the review and create our service.
+
+![create service](https://raw.githubusercontent.com/ednilsonamaral/aws-ecs-fargate-multiple-services/master/img/create-service-07.png)
+
 
 Remembering that you must repeat the creation of each service for each application.
 
