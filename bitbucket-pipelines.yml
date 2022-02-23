@@ -1,0 +1,37 @@
+script:
+# AWS Login
+- aws configure set aws_access_key_id $AWS_ACCESS_KEY
+- aws configure set aws_secret_access_key $AWS_SECRET_KEY
+- aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_DOCKER_IMAGE_NAME
+          
+# Docker Build
+- docker build -t api:${BITBUCKET_COMMIT} .
+- docker tag api:${BITBUCKET_COMMIT} $AWS_DOCKER_IMAGE_NAME:${BITBUCKET_COMMIT}
+- docker push $AWS_DOCKER_IMAGE_NAME:${BITBUCKET_COMMIT}
+          
+# Replace the container name in the task definition with the new image.
+- yum install gettext -y
+- yum update -y
+- yum install jq -y
+- export IMAGE_NAME="$AWS_DOCKER_IMAGE_NAME:${BITBUCKET_COMMIT}"
+- envsubst < task-definition.json > task-definition-envsubst.json
+
+# Delete current tasks running in service
+- >
+  export CURRENT_TASK_RUNNING_IN_SERVICE="$(aws ecs list-tasks --cluster $AWS_ECS_CLUSTER_NAME_DEV --service $AWS_ECS_SERVICE_NAME_DEV | jq -M -r '.taskArns | .[0]')"
+- echo $CURRENT_TASK_RUNNING_IN_SERVICE
+- aws ecs stop-task --cluster $AWS_ECS_CLUSTER_NAME_DEV --task $CURRENT_TASK_RUNNING_IN_SERVICE
+
+# Delete task definition latest version
+- >
+  export CURRENT_TASK_DEFINITON="$(aws ecs list-task-definitions --region $AWS_REGION | jq -M -r '.taskDefinitionArns | .[0]')"
+- echo $CURRENT_TASK_DEFINITON
+- aws ecs deregister-task-definition --task-definition $CURRENT_TASK_DEFINITON
+          
+# Update the task definition and capture the latest revision.
+- >
+  export UPDATED_TASK_DEFINITION="$(aws ecs register-task-definition --cli-input-json file://task-definition-envsubst.json | jq '.taskDefinition.taskDefinitionArn' --raw-output)"
+
+# Update the service
+- echo $UPDATED_TASK_DEFINITION
+- aws ecs update-service --service $AWS_ECS_SERVICE_NAME_DEV --cluster $AWS_ECS_CLUSTER_NAME_DEV --task-definition ${UPDATED_TASK_DEFINITION}
